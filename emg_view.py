@@ -439,7 +439,7 @@ class EMGTab(QtWidgets.QWidget):
         head = QtWidgets.QHBoxLayout()
         head.setSpacing(8)
         self.lbl_status = QtWidgets.QLabel(
-            "Choose a filename on the Start tab and press Process file.")
+            "Record on the Start tab, stop, select a video, then press Process file.")
         self.lbl_status.setObjectName("statusLine")
         self.lbl_status.setWordWrap(True)
         self.btn_save = QtWidgets.QPushButton("Save figures + CSV")

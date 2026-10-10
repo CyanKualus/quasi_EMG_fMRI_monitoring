@@ -1,0 +1,11 @@
+block_number,onset,duration,hand_condition,microrepeats
+1,14,18,left,4
+2,46,18,right,4
+3,82,18,left,4
+4,116,18,right,4
+5,144,18,right,4
+6,176,18,left,4
+7,204,18,right,4
+8,240,18,right,4
+9,274,18,left,4
+10,302,18,left,4

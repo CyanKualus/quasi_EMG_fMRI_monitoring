@@ -1,11 +1,23 @@
 # quasi_EMG_streamer
 
-Standalone EMG copy of NeuroCasting. It processes **one filename at a time**
+Standalone EMG copy of NeuroCasting. It **records a raw RDA stream and then
+processes the saved recording**
 and retains the existing mean-envelope plots, high-EMG trial screening, trial
 browser, figures and CSV output. The EEG processing package, component fitting,
 time-frequency analysis and EEG score tabs are absent. A separate **Online
 Monitoring** tab receives BrainAmp MR data through BrainVision Recorder RDA
 and displays the TKEO envelope of AAS-corrected EMG in the El Artem plot style.
+
+## Portable Windows application
+
+Extract **`quasi_EMG_streamer-Windows-x64.zip`** into a writable folder, then
+open **`quasi_EMG_streamer.exe`**. Python, Git and package installation are not
+required. Keep the `_internal` folder and `quasi_emg_settings.json` beside the
+executable. Raw recordings go into `data` and saved results into `output` beside it.
+
+The portable build still connects to BrainVision Recorder's RDA server for
+live acquisition. See `README-Windows.txt` inside the download for usage and
+update instructions.
 
 ## Online BrainAmp MR monitoring
 
@@ -31,42 +43,60 @@ tabs to restore the previous window size.
 See [the connection and monitoring guide](docs/online_monitoring.md) for
 Recorder setup, timing assumptions and stream interruption behavior.
 
-## Open and process a file
+## Record and process a stream
 
 With Python 3.12 installed, run **`setup_environment.bat`** once to create the
 local environment and install dependencies. Then double-click
 **`launch_quasi_EMG_processing.bat`** to open the application.
 
-1. Browse to one **`.vhdr`** BrainVision header, keeping its referenced
-   `.eeg` and `.vmrk` companions in place. Ordinary XDF EMG input is also supported.
-2. Leave the left-hand pair blank and the right-hand pair as **F1, F2** for the
-   reviewed recordings. Change these fields for other electrode arrangements.
-3. Choose the video schedule, or leave **Automatic** selected. Automatic reads
-   the recording's `pN` or `blockNN` ordinal and `cond seq.txt` beside the file
-   or in its parent folder. For an arbitrary filename, select Video 1, 2 or 3.
-   The three original stimulus CSVs are bundled in `schedules/`.
-4. Set **Remove MRI artifacts using MNE (AAS + cardiac OBS)** as appropriate:
+1. Enable **Remote Data Access** and start monitoring in BrainVision Recorder.
+   On this app's **Start** tab, set **Recorder host** and **RDA port** (normally
+   `127.0.0.1` and `51244`). These settings are shared with Online Monitoring.
+2. Press **Start recording** before the video's **S3** marker. The app saves
+   every incoming channel, at the stream's native sampling rate, with its
+   original calibration and markers. No filtering or artifact correction is
+   applied during capture. Recorder can continue saving its own larger file.
+3. After the video and its scheduled events finish, press **Stop recording**.
+   Start and Stop are side by side, above **Process file**. The app flushes and
+   closes the recording before enabling video selection.
+4. Manually select **Video1R, Video2R, Video3R, Video1LR, Video2LR or Video3LR**. This selection resets for each recording;
+   it is never inferred from a filename. The six block schedules and their companion block-level rest/fixation tables
+   are bundled in `schedules/`. R videos use only the configured right-hand pair;
+   LR videos use each enabled hand. Left-hand settings are retained when choosing R.
+5. Set **Remove MRI artifacts using MNE (AAS + cardiac OBS)** as appropriate:
 
    | Checkbox | Processing |
    |---|---|
    | Clear (default) | Existing bipolar EMG pipeline, with no added artifact correction; use for already corrected BrainVision files. |
    | Ticked | Full MNE AAS + cardiac OBS from the reviewed report, followed by the same EMG pipeline; use for uncorrected BrainVision files. An ECG channel is required. |
 
-5. Press **Process file**. Review **EMG Analysis**, open the hand's trial
+6. Press **Process file**. It becomes available only after the file is finalized
+   and a video is selected. Review **EMG Analysis**, open the hand's trial
    browser, then use **Save figures + CSV** to save the displayed result.
 
-For a recording that is still being acquired, tick **Wait for this recording
-to stop before processing**, then press **Process file**. This handles the
-selected recording once: it waits for the header and its companion files to
-exist, close, and remain unchanged for two seconds. On Windows, it checks that
-no process still has the files open. This checks file readiness; it does not
-connect to the recorder's Stop button. The wait times out after one hour.
-Closing the application while waiting requests cancellation; close again when
-the worker has stopped. During analysis or saving, let the operation finish.
+Each capture gets a unique timestamped name in `data/`, with a `.vhdr` header,
+`.eeg` samples and `.vmrk` markers. Keep all three together for later recovery
+or reprocessing. No filename or participant entry is needed. Starting another
+capture clears the previous on-screen result but preserves its raw files.
+
+Recording, online monitoring, analysis and figure export run separately.
+Stopping or closing this app finalizes its local recording; it does not stop
+BrainVision Recorder or its larger recording. A Recorder stream Stop also
+finalizes the capture. Connection failures, missing blocks, malformed samples,
+or a stream restart retain the received prefix but block processing that
+incomplete capture. Start a new recording after resolving the error.
 
 ## Timing and correction
 
 BrainVision uses the earliest **S3** marker and the selected video's schedule.
+The current R/LR stimuli use a 2-second hand cue followed by four 4-second
+repeats in each 18-second block. Each repeat is scored separately, including
+its 2-second preparation and 2-second action period. R videos contain 40 right-hand
+trials; LR videos contain 20 per hand. Onsets and hand order come from `*_blocks.csv`;
+rest durations (10/14/16/18 seconds) and fixation timing come from `*_conn_blocks.csv`.
+The old videos and microrepeat CSVs are not used by the app. The source tables and
+their hashes are recorded in `processing.json`.
+
 Marker times are sample locked; there is no XDF marker-time shift. The recording
 must contain the scheduled events through their ends. XDF retains the original
 embedded-trial marker and automatic clock-lag handling.
@@ -122,17 +152,25 @@ The CLI processes and saves a single file immediately, so a recorder can call
 it after closing its output files:
 
 ```powershell
-& .\.venv\Scripts\python.exe run_emg_cli.py "D:\recordings\run.vhdr" --video 3
-& .\.venv\Scripts\python.exe run_emg_cli.py "D:\recordings\raw.vhdr" --video 3 --mne-mri
+& .\.venv\Scripts\python.exe run_emg_cli.py "D:\recordings\run.vhdr" --video Video3LR
+& .\.venv\Scripts\python.exe run_emg_cli.py "D:\recordings\raw.vhdr" --video Video3LR --mne-mri
 ```
 
 Add `--wait-for-stop` if the file may still be open. Add `--no-trial-figures`
 to save a mean plot and summary without the per-trial output folder.
 Run `--help` for the electrode, ECG, TR, participant and output-folder options.
-The GUI can also open and process a supplied file:
+For recovery, the GUI can also process a supplied file through launch arguments
+(select a video explicitly for BrainVision):
 
 ```powershell
-& .\.venv\Scripts\python.exe app.py "D:\recordings\raw.vhdr" --video 3 --mne-mri --process
+& .\.venv\Scripts\python.exe app.py "D:\recordings\raw.vhdr" --video Video3LR --mne-mri --process
 ```
 
 Original EMG algorithm and interface copied from NeuroCasting_QuasifMRI.
+
+## Building the portable application
+
+On Windows x64 with Python 3.12 installed, run **`build_standalone.bat`**.
+It creates an isolated `.build-venv`, installs the pinned scientific packages
+and PyInstaller, then produces `dist/quasi_EMG_streamer-Windows-x64.zip`.
+Only the builder needs Python; users receive the complete ZIP.

@@ -1,0 +1,62 @@
+{
+  "Video1R": [
+    {
+      "source": "D:\\Documents\\Работа\\МЭГ\\Quasi fMRI\\Stimuli\\R_videos\\run_01\\mri_eeg_right_only_10_14_16_18_01_blocks.csv",
+      "sha256": "11dbc72d7d119f3c43a6f0193cf9ddced9473f7288b7aca72c2af91e6860dcc7"
+    },
+    {
+      "source": "D:\\Documents\\Работа\\МЭГ\\Quasi fMRI\\Stimuli\\R_videos\\run_01\\mri_eeg_right_only_10_14_16_18_01_conn_blocks.csv",
+      "sha256": "203b835911aa3d646e3555cca74e807fa6b654dcdf43afbd8e6975c38faff81e"
+    }
+  ],
+  "Video2R": [
+    {
+      "source": "D:\\Documents\\Работа\\МЭГ\\Quasi fMRI\\Stimuli\\R_videos\\run_02\\mri_eeg_right_only_10_14_16_18_02_blocks.csv",
+      "sha256": "74326d253dd103c13814474c86b2bbc40538eec623a6fd2b5b6f699223090363"
+    },
+    {
+      "source": "D:\\Documents\\Работа\\МЭГ\\Quasi fMRI\\Stimuli\\R_videos\\run_02\\mri_eeg_right_only_10_14_16_18_02_conn_blocks.csv",
+      "sha256": "d2a62b0dffc5e672f1e511d3cd6850ca3dd9a5b5adba747ceb5ed3babfaeea1e"
+    }
+  ],
+  "Video3R": [
+    {
+      "source": "D:\\Documents\\Работа\\МЭГ\\Quasi fMRI\\Stimuli\\R_videos\\run_03\\mri_eeg_right_only_10_14_16_18_03_blocks.csv",
+      "sha256": "38153dca5ac1b2dc1c669d9b9a727ec4dae0c21dc06362dd119f3849933fe95b"
+    },
+    {
+      "source": "D:\\Documents\\Работа\\МЭГ\\Quasi fMRI\\Stimuli\\R_videos\\run_03\\mri_eeg_right_only_10_14_16_18_03_conn_blocks.csv",
+      "sha256": "ac3d81060228ec406235f37312071e4d397f25a06eb8e8c5d3560c98c354f918"
+    }
+  ],
+  "Video1LR": [
+    {
+      "source": "D:\\Documents\\Работа\\МЭГ\\Quasi fMRI\\Stimuli\\LR_videos\\run_01\\mri_eeg_lr_10_14_16_18_01_blocks.csv",
+      "sha256": "e27b22f357d5fe64d25d70dc88bb92cfa3b2f55ba06aa81bd11d5c761644c5c1"
+    },
+    {
+      "source": "D:\\Documents\\Работа\\МЭГ\\Quasi fMRI\\Stimuli\\LR_videos\\run_01\\mri_eeg_lr_10_14_16_18_01_conn_blocks.csv",
+      "sha256": "41b68664297b0af6b61a3533a289a2deb08e29ed76ffa236d198b61d9ed41ec7"
+    }
+  ],
+  "Video2LR": [
+    {
+      "source": "D:\\Documents\\Работа\\МЭГ\\Quasi fMRI\\Stimuli\\LR_videos\\run_02\\mri_eeg_lr_10_14_16_18_02_blocks.csv",
+      "sha256": "83196004137dd464325c293eb54341ebfe629197ee81fd0f576155332a0f8b6d"
+    },
+    {
+      "source": "D:\\Documents\\Работа\\МЭГ\\Quasi fMRI\\Stimuli\\LR_videos\\run_02\\mri_eeg_lr_10_14_16_18_02_conn_blocks.csv",
+      "sha256": "16cb9f64159657ab83c8dd5d61e0df0633c3a2426671435abd0430ef34bcd590"
+    }
+  ],
+  "Video3LR": [
+    {
+      "source": "D:\\Documents\\Работа\\МЭГ\\Quasi fMRI\\Stimuli\\LR_videos\\run_03\\mri_eeg_lr_10_14_16_18_03_blocks.csv",
+      "sha256": "96572a616c541847de5c07ede3bf745810ac456653c9c0de94c532520cda5a70"
+    },
+    {
+      "source": "D:\\Documents\\Работа\\МЭГ\\Quasi fMRI\\Stimuli\\LR_videos\\run_03\\mri_eeg_lr_10_14_16_18_03_conn_blocks.csv",
+      "sha256": "15e7a333c221f66ec0ac6851a28f7419cdacfc165eb7bf9dad14091f8d188307"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+condition_name,subject_number,session_number,onsets,durations
+right_task_block,,,14 48 76 112 144 172 206 234 270 302,18 18 18 18 18 18 18 18 18 18
+rest,,,32 66 94 130 162 190 224 252 288,16 10 18 14 10 16 10 18 14
+initial_fixation,,,0,14
+final_fixation,,,320,14

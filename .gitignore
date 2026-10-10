@@ -1,5 +1,6 @@
 # Local Python environments and caches
 .venv/
+.build-venv/
 venv/
 __pycache__/
 *.py[cod]
@@ -14,6 +15,7 @@ dist/
 
 # Generated analysis results, screenshots, and source recordings
 output/
+data/
 *.eeg
 *.vhdr
 *.vmrk

@@ -1,15 +1,7 @@
-"""BrainVision session loading and video-schedule reconstruction.
+"""BrainVision loading with manually selected R/LR block schedules.
 
-The fMRI export contains one ``.vhdr`` recording per presented video.  Only
-the video's start is marked in the BrainVision marker file; trial and rest
-events are reconstructed from two small pieces of session metadata:
-
-* ``cond seq.txt`` in the recording folder maps p1, p2, ... to an experimental
-  condition and video number;
-* ``mri_eeg_order_XX_conn_microrepeats.csv`` in ``LSL_recorder_MEG`` gives the
-  event onsets relative to the first displayed frame of that video.
-
-All public onsets returned here are seconds from the recording's first sample.
+Repeat timing is reconstructed from block tables and anchored to the first S3.
+The old session-order helpers remain for historical diagnostics only.
 """
 from __future__ import annotations
 
@@ -29,6 +21,9 @@ VIDEO_START_MARKER = "S 3"
 VIDEO_END_MARKER = "S 4"
 VIDEO_DURATION_S = 334.0
 VIDEO_DURATION_TOLERANCE_S = 0.5
+VIDEO_OPTIONS = tuple(f"Video{n}{family}" for family in ("R", "LR") for n in (1, 2, 3))
+BLOCK_CUE_S = 2.0
+REPEAT_DURATION_S = 4.0
 
 CONDITION_ALIASES = {
     "om": "overt",
@@ -55,6 +50,73 @@ class SessionEntry:
 class Schedule:
     path: Path
     events: dict[str, tuple[np.ndarray, np.ndarray]]
+    source_paths: tuple[Path, ...] = ()
+    duration_s: float = VIDEO_DURATION_S
+
+
+def read_video_schedule(video: str, hint: str | Path | None = None,
+                        wanted: Iterable[str] | None = None) -> Schedule:
+    """Derive four-second repeats after each block's two-second hand cue.
+
+    The companion conn_blocks table supplies actual rest/fixation intervals.
+    No microrepeat CSV or automatic session-order lookup is used.
+    """
+    if video not in VIDEO_OPTIONS:
+        raise ValueError(f"Select a video explicitly: {', '.join(VIDEO_OPTIONS)}")
+    family = "right_only" if video.endswith("R") and not video.endswith("LR") else "lr"
+    prefix = f"mri_eeg_{family}_10_14_16_18_{int(video[5]):02d}"
+    root = Path(hint) if hint is not None else Path(__file__).resolve().parent.parent / "schedules"
+    path = root / f"{prefix}_blocks.csv"
+    companion = root / f"{prefix}_conn_blocks.csv"
+    block_events = read_schedule(companion).events
+    repeats = {"left": [], "right": []}
+    blocks = {"left": [], "right": []}
+    with path.open(newline="", encoding="utf-8-sig") as handle:
+        reader = csv.DictReader(handle)
+        required = {"block_number", "onset", "duration", "hand_condition", "microrepeats"}
+        if reader.fieldnames is None or not required.issubset(reader.fieldnames):
+            raise ValueError(f"{path.name}: missing block columns")
+        for index, row in enumerate(reader, 1):
+            hand = row["hand_condition"].strip()
+            onset, duration = float(row["onset"]), float(row["duration"])
+            count = int(row["microrepeats"])
+            if (hand not in blocks or int(row["block_number"]) != index
+                    or not np.isfinite(onset) or onset < 0 or count <= 0
+                    or not np.isfinite(duration)
+                    or not np.isclose(duration, BLOCK_CUE_S + count * REPEAT_DURATION_S)):
+                raise ValueError(f"{path.name}: invalid block {index}")
+            blocks[hand].append((onset, duration))
+            repeats[hand].extend(onset + BLOCK_CUE_S + np.arange(count) * REPEAT_DURATION_S)
+    expected_hands = {"right"} if family == "right_only" else {"left", "right"}
+    if {hand for hand, values in blocks.items() if values} != expected_hands:
+        raise ValueError(f"{path.name}: hand conditions do not match {video}")
+    expected_conditions = {f"{hand}_task_block" for hand in expected_hands} | {
+        "rest", "initial_fixation", "final_fixation"}
+    if set(block_events) != expected_conditions:
+        raise ValueError(f"{companion.name}: unexpected or missing block conditions")
+    for hand in expected_hands:
+        actual = np.asarray(blocks[hand]).T
+        expected = np.asarray(block_events[f"{hand}_task_block"])
+        if actual.shape != expected.shape or not np.allclose(actual, expected):
+            raise ValueError(f"{path.name}: {hand} blocks disagree with {companion.name}")
+    # Together the block and rest/fixation intervals must cover the video once.
+    intervals = sorted((float(t), float(t + d)) for onsets, durations in block_events.values()
+                       for t, d in zip(onsets, durations))
+    end = 0.0
+    for start, stop in intervals:
+        if not np.isclose(start, end):
+            raise ValueError(f"{companion.name}: gap or overlap at {start:g}s")
+        end = stop
+    events = {name: block_events[name] for name in ("rest", "initial_fixation", "final_fixation")}
+    events.update({f"{hand}_microrepeat": (np.asarray(values), np.full(len(values), REPEAT_DURATION_S))
+                   for hand, values in repeats.items() if values})
+    if wanted is not None:
+        wanted = set(wanted)
+        missing = wanted - events.keys()
+        if missing:
+            raise KeyError(f"{video}: missing conditions {sorted(missing)}")
+        events = {name: values for name, values in events.items() if name in wanted}
+    return Schedule(path, events, (path, companion), end)
 
 
 def _condition(label: str) -> str:
@@ -242,7 +304,8 @@ def marker_onsets(raw, marker: str) -> np.ndarray:
     ], dtype=float)
 
 
-def video_start(raw, source_name: str = "recording") -> float:
+def video_start(raw, source_name: str = "recording", *,
+                expected_duration_s: float = VIDEO_DURATION_S) -> float:
     """Earliest S3 onset, with the S4 video-duration cross-check when present."""
     starts = marker_onsets(raw, VIDEO_START_MARKER)
     if starts.size == 0:
@@ -252,10 +315,10 @@ def video_start(raw, source_name: str = "recording") -> float:
     later = ends[ends > start]
     if later.size:
         observed = float(np.min(later) - start)
-        if abs(observed - VIDEO_DURATION_S) > VIDEO_DURATION_TOLERANCE_S:
+        if abs(observed - expected_duration_s) > VIDEO_DURATION_TOLERANCE_S:
             raise ValueError(
                 f"{source_name}: first S4 is {observed:.3f}s after first S3; "
-                f"expected about {VIDEO_DURATION_S:g}s")
+                f"expected about {expected_duration_s:g}s")
     return start
 
 
@@ -279,7 +342,7 @@ def load(path: str | Path, wanted_events: Iterable[str], *,
          target_fs: float | None = None,
          order_path: str | Path | None = None,
          schedule_dir: str | Path | None = None,
-         video: int | None = None, mri_config=None):
+         video: str | None = None, mri_config=None):
     """Load selected channels plus reconstructed schedule events.
 
     Returns ``(data, events, video_onset_s, info)``. Data is in volts, shaped
@@ -307,20 +370,15 @@ def load(path: str | Path, wanted_events: Iterable[str], *,
         if missing:
             raise ValueError(f"{path.name}: channels not found: {missing}")
     native_fs = float(raw.info["sfreq"])
-    anchor = video_start(raw, path.name)
-    if video is None:
-        entry, schedule = recording_schedule(
-            path, wanted_events, order_path=order_path, schedule_dir=schedule_dir)
-        resolved_order = Path(order_path) if order_path else session_order_path(path)
-        session_info = {
-            "session_label": entry.session_label, "condition": entry.condition,
-            "video": entry.video, "session_order_file": str(resolved_order),
-            "session_order_sha256": hashlib.sha256(resolved_order.read_bytes()).hexdigest(),
-        }
-    else:
-        schedule = read_schedule(schedule_path(video, schedule_dir), wanted_events)
-        session_info = {"session_label": path.stem, "video": int(video),
-                        "video_selection": "explicit"}
+    schedule = read_video_schedule(video, schedule_dir, wanted_events)
+    anchor = video_start(raw, path.name, expected_duration_s=schedule.duration_s)
+    session_info = {"session_label": path.stem, "video": video,
+                    "video_selection": "explicit", "schedule_format": "blocks",
+                    "video_duration_s": schedule.duration_s,
+                    "block_cue_s": BLOCK_CUE_S, "repeat_duration_s": REPEAT_DURATION_S,
+                    "schedule_sources": [{"path": str(source),
+                        "sha256": hashlib.sha256(source.read_bytes()).hexdigest()}
+                        for source in schedule.source_paths]}
     events = {
         name: (anchor + onsets.copy(), durations.copy())
         for name, (onsets, durations) in schedule.events.items()

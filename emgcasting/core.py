@@ -2,8 +2,8 @@
 
 XDF timing comes from embedded event markers and its clock correction is
 resolved per recording. For the reviewed BrainVision session, timing is
-instead reconstructed from the sample-locked first S3 marker, ``cond seq.txt``,
-and the matching video microrepeat CSV; no XDF clock shift is applied. The
+instead reconstructed from the sample-locked first S3 marker and the manually
+selected R/LR video block CSVs; no XDF clock shift is applied. The
 signal pipeline uses a bipolar difference, volts to millivolts, a causal 50 Hz
 notch, a causal 20--95 Hz Butterworth band-pass (valid at 250 Hz),
 Teager--Kaiser energy, and a 100 ms window / 20 ms step envelope.
@@ -29,10 +29,11 @@ import numpy as np
 from scipy.signal import butter, iirnotch, resample_poly, sosfilt, tf2sos
 
 from shared import brainvision
+from shared.app_paths import APP_DIR
 from shared.marker_shift import resolve_marker_shift
 
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent
+PROJECT_DIR = APP_DIR
 # Where saved figures and tables go, as a path *relative to the application*.
 #
 # It is deliberately not an absolute path. The root is written to the settings
@@ -91,7 +92,7 @@ class ProcessingConfig:
     remove_mri_artifacts: bool = False
     ecg_channel: str = "ECG"
     mri_tr_s: float = 2.5
-    video: int | None = None
+    video: str | None = None
     single_file_output: bool = False
 
     def validate(self) -> None:
@@ -106,8 +107,10 @@ class ProcessingConfig:
             raise ValueError("BrainVision MRI inputs are calibrated to volts; input_unit must be V")
         if not np.isfinite(self.mri_tr_s) or self.mri_tr_s <= 0:
             raise ValueError("MRI TR must be positive and finite")
-        if self.video not in (None, 1, 2, 3):
-            raise ValueError("video must be 1, 2, 3 or null (automatic)")
+        if self.video is not None and self.video not in brainvision.VIDEO_OPTIONS:
+            raise ValueError(f"video must be one of {', '.join(brainvision.VIDEO_OPTIONS)}")
+        if self.file_type == "brainvision" and self.video is None:
+            raise ValueError("Select the R/LR video explicitly before processing")
         if self.rest_trim_start_s < 0 or self.rest_trim_end_s < 0:
             raise ValueError("rest trims must not be negative")
         if self.trial_tail_s < 0:
@@ -141,10 +144,9 @@ class ProcessingConfig:
             raise ValueError("rest pseudo-trial step must be positive")
         if not np.isfinite(self.marker_shift_s):
             raise ValueError("marker time shift must be finite")
-        enabled_pairs = [pair for pair in
-                         (self.left_channels, self.right_channels) if pair]
+        enabled_pairs = [pair for _, _, pair in hand_specs(self)]
         if not enabled_pairs:
-            raise ValueError("at least one hand needs a bipolar EMG pair")
+            raise ValueError("at least one presented hand needs a bipolar EMG pair; R videos require right-hand channels")
         if any(len(pair) != 2 for pair in enabled_pairs):
             raise ValueError(
                 "each enabled hand needs exactly two channels for bipolar EMG")
@@ -293,14 +295,16 @@ def parse_optional_pair(text: str) -> tuple[str, str] | None:
 
 
 def hand_specs(config: ProcessingConfig):
-    """Configured hands only, preserving the established left/right order."""
+    """Configured, presented hands, preserving left/right order."""
     return [
         (hand, condition, pair)
         for hand, condition, pair in (
             ("left", config.left_condition, config.left_channels),
             ("right", config.right_condition, config.right_channels),
         )
-        if pair is not None
+        if pair is not None and not (
+            config.file_type == "brainvision" and config.video in ("Video1R", "Video2R", "Video3R")
+            and hand == "left")
     ]
 
 
@@ -890,7 +894,7 @@ def _events_for(recording: LoadedRecording, config: ProcessingConfig,
     if recording.event_source == "brainvision":
         note = (
             "BrainVision trials reconstructed from first S3 video start and "
-            f"cond-seq video schedule; {shift_note}")
+            f"{config.video} block schedule (4-second repeats); {shift_note}")
     else:
         note = f"embedded XDF marker timestamps shifted {shift:+.3f} s; {shift_note}"
     if recording.video_onset_s is not None:

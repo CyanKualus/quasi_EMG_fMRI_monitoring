@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 
 from emgcasting.core import ProcessingConfig
+from shared.app_paths import APP_DIR
 
-ROOT = Path(__file__).resolve().parent
+ROOT = APP_DIR
 SETTINGS_PATH = ROOT / "quasi_emg_settings.json"
 
 

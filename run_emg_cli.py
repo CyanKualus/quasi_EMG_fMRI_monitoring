@@ -5,13 +5,14 @@ import sys
 from emgcasting.core import parse_optional_pair, save_batch_outputs
 from emgcasting.single_file import analyze_file
 from settings import file_config
+from shared.brainvision import VIDEO_OPTIONS
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("filename", help="One .vhdr or .xdf file, including its extension")
     parser.add_argument("--mne-mri", action="store_true", help="Full MNE AAS + cardiac OBS")
-    parser.add_argument("--video", type=int, choices=(1, 2, 3), help="Override automatic video lookup")
+    parser.add_argument("--video", choices=VIDEO_OPTIONS, help="Required R/LR schedule for BrainVision input")
     parser.add_argument("--participant", default="")
     parser.add_argument("--left-emg", help="Positive,negative electrodes; empty disables this hand")
     parser.add_argument("--right-emg")

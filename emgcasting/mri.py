@@ -95,8 +95,13 @@ def correct_raw(source, channels, *, ecg_channel="ECG", tr_s=2.5):
             if not np.all(np.isfinite(native)):
                 raise ValueError(f"{channel}: non-finite samples in the recording")
             clean, stop = gradient_channel(native, fs, tr_s)
-            corrected.append(mne.filter.resample(
-                clean, down=fs / 250, method="polyphase", verbose="error"))
+            # The reviewed MNE polyphase implementation cannot design its
+            # filter for a 1:1 ratio. Already-conditioned 250 Hz recordings
+            # need no resampling; preserve their samples unchanged here.
+            if fs != 250.0:
+                clean = mne.filter.resample(
+                    clean, down=fs / 250, method="polyphase", verbose="error")
+            corrected.append(clean)
         qrs, ecg_info = detect_qrs(corrected.pop())
         gradient = mne.io.RawArray(np.asarray(corrected),
                                   mne.create_info(channels, 250, ["emg"] * len(channels)),

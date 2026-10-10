@@ -1,5 +1,13 @@
 # BrainAmp MR online monitoring
 
+For recording followed by offline analysis, use the **Start** tab: **Start
+recording → Stop recording → select Video1R/2R/3R or Video1LR/2LR/3LR → Process file**. It saves all
+raw channels and markers in timestamped BrainVision files under `data/` beside
+the app, using the same Recorder host and RDA port. Start capture before S3 and
+stop after the video ends. Recording and monitoring cannot run simultaneously.
+The online display options, filters and optional start-marker gate do not
+affect raw capture. See [the recording workflow](../README.md#record-and-process-a-stream).
+
 The **Online Monitoring** tab receives the amplifier's data from **BrainVision
 Recorder's Remote Data Access (RDA) server** over TCP. Its two black plots,
 white traces, grid, LEFT/RIGHT arrangement and amplitude indicators follow
@@ -38,8 +46,9 @@ RDA connection settings and message layouts are documented in the
 Disconnecting or closing this app closes its client connection. It does not
 send commands to the amplifier or stop Recorder's acquisition or recording.
 There is no automatic reconnection: fix the reported problem, then Connect.
-Connection and display preferences are saved independently of offline settings.
-File processing and figure export are disabled during monitoring to reserve
+The host and port are shared with the Start tab; display preferences are saved
+independently of offline analysis settings.
+Recording, file processing and figure export are disabled during monitoring to reserve
 processing time for the stream.
 
 ## Display and timing
@@ -164,6 +173,14 @@ while monitoring continues does not reset the template merely because Recorder
 sends a state notification. Partial TCP packets and short socket timeouts do
 not discard bytes. A stream stall is shown after one second without samples;
 ten seconds without samples/complete messages stops the connection.
+
+The client accepts standard type-10000 keepalives and skips type-100000
+messages, including their payload (102 bytes reported with Recorder 1.25.0201).
+The contents of type 100000 are undocumented; skipping the complete framed
+message follows the [Brain Products LSL client's handling of unhandled types](https://github.com/brain-products/LSL-BrainVisionRDA/blob/master/mainwindow.cpp).
+These messages do not count as samples, reset the artifact template, or extend
+the no-samples timeout. Other unsupported types still report an error with the
+message type and payload length.
 
 This tab monitors only; it does not write a second recording or trial scores.
 

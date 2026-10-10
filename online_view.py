@@ -131,8 +131,15 @@ class MonitorWorker(QtCore.QThread):
                 processor = info = None
                 self.publish("reset", None)
                 self.snapshot = {"state": "Waiting", "message": "Recorder stopped monitoring. Waiting for a new start."}
+            elif kind == 100000:
+                # Recorder 1.25.0201 sends this type with a 102-byte payload.
+                # Its contents are undocumented; follow Brain Products' LSL
+                # client's treatment of unhandled types. receive_packet has
+                # already consumed the whole payload using the RDA length.
+                # Only DATA16/DATA32 advance samples, timing and the template.
+                pass
             elif kind not in (5, 7, 8, 9, 10000):
-                raise RDAError(f"Unsupported RDA message type: {kind}")
+                raise RDAError(f"Unsupported RDA message type: {kind} (payload {len(body)} bytes)")
             # NEWSTATE, INFO and keepalives are not samples. Recording can start
             # while monitoring continues; its state notification must not reset AAS.
             if processor is not None and time.monotonic() - last_data_clock > 10:
@@ -444,7 +451,7 @@ class OnlineTab(QtWidgets.QWidget):
         if self.is_running():
             return
         if not self.can_start():
-            self.status.setText("Finish file analysis or saving before starting online monitoring.")
+            self.status.setText("Finish recording, file analysis or saving before starting online monitoring.")
             return
         try:
             config = OnlineConfig(parse_optional_pair(self.left.text()),
