@@ -57,7 +57,7 @@ class QuasiEMGApp(QtWidgets.QMainWindow):
         title.setStyleSheet("font-size: 23px; font-weight: 600;")
         outer.addWidget(title)
         intro = QtWidgets.QLabel(
-            "Record the raw stream, stop recording, then choose a video and process the saved file.")
+            "Start recording synchronously with the video. After stopping, choose the video and process the saved file.")
         intro.setWordWrap(True)
         outer.addWidget(intro)
         form = QtWidgets.QFormLayout()
@@ -76,10 +76,12 @@ class QuasiEMGApp(QtWidgets.QMainWindow):
             self.cmb_video.addItem(video, video)
         self.cmb_video.setToolTip(
             "After stopping, select the presented video. R = right hand only; LR = both hands. "
-            "Each 4-second repeat is scored using block timing anchored to the first S3 marker.")
+            "Each 4-second repeat uses block timing from the first recorded sample. No EEG markers are needed.")
         self.cmb_video.currentIndexChanged.connect(self._refresh_busy)
         form.addRow("video schedule", self.cmb_video)
-        self.lbl_video = QtWidgets.QLabel("R: right hand only. LR: left and right hands. Each repeat is scored separately.")
+        self.lbl_video = QtWidgets.QLabel(
+            "Video time zero = first recorded sample; no EEG markers needed. "
+            "R: right hand only. LR: both hands. Each repeat is scored separately.")
         self.lbl_video.setWordWrap(True)
         form.addRow("", self.lbl_video)
         defaults = load_settings()

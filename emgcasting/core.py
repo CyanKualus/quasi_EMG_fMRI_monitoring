@@ -2,7 +2,7 @@
 
 XDF timing comes from embedded event markers and its clock correction is
 resolved per recording. For the reviewed BrainVision session, timing is
-instead reconstructed from the sample-locked first S3 marker and the manually
+instead reconstructed from recording sample zero and the manually
 selected R/LR video block CSVs; no XDF clock shift is applied. The
 signal pipeline uses a bipolar difference, volts to millivolts, a causal 50 Hz
 notch, a causal 20--95 Hz Butterworth band-pass (valid at 250 Hz),
@@ -893,7 +893,7 @@ def _events_for(recording: LoadedRecording, config: ProcessingConfig,
     }
     if recording.event_source == "brainvision":
         note = (
-            "BrainVision trials reconstructed from first S3 video start and "
+            "BrainVision video start assumed synchronous with recording sample zero; "
             f"{config.video} block schedule (4-second repeats); {shift_note}")
     else:
         note = f"embedded XDF marker timestamps shifted {shift:+.3f} s; {shift_note}"
@@ -1208,7 +1208,7 @@ def analyze_recording(path: Path, name: str, config: ProcessingConfig,
     # is a property of the file, not of the study.
     if config.file_type == "brainvision":
         shift, shift_note, estimate = (
-            0.0, "sample-locked S3 anchor; no XDF clock correction", None)
+            0.0, "recording-start anchor; no EEG markers or XDF clock correction", None)
     else:
         shift, shift_note, estimate = resolve_marker_shift(
             path, config.auto_marker_shift, config.marker_shift_s,

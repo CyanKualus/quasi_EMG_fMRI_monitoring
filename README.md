@@ -52,7 +52,7 @@ local environment and install dependencies. Then double-click
 1. Enable **Remote Data Access** and start monitoring in BrainVision Recorder.
    On this app's **Start** tab, set **Recorder host** and **RDA port** (normally
    `127.0.0.1` and `51244`). These settings are shared with Online Monitoring.
-2. Press **Start recording** before the video's **S3** marker. The app saves
+2. Start recording **synchronously with the video**. The app saves
    every incoming channel, at the stream's native sampling rate, with its
    original calibration and markers. No filtering or artifact correction is
    applied during capture. Recorder can continue saving its own larger file.
@@ -88,7 +88,11 @@ incomplete capture. Start a new recording after resolving the error.
 
 ## Timing and correction
 
-BrainVision uses the earliest **S3** marker and the selected video's schedule.
+BrainVision treats the **first recorded sample as video time zero** and uses
+the selected video's schedule. No EEG markers are required; any recorded
+S3/S4 markers are preserved but do not shift or validate the video timing.
+This assumes acquisition and video playback start synchronously; the app does
+not automatically detect or compensate for a start delay.
 The current R/LR stimuli use a 2-second hand cue followed by four 4-second
 repeats in each 18-second block. Each repeat is scored separately, including
 its 2-second preparation and 2-second action period. R videos contain 40 right-hand
@@ -97,7 +101,7 @@ rest durations (10/14/16/18 seconds) and fixation timing come from `*_conn_block
 The old videos and microrepeat CSVs are not used by the app. The source tables and
 their hashes are recorded in `processing.json`.
 
-Marker times are sample locked; there is no XDF marker-time shift. The recording
+Schedule times are relative to recording start; there is no XDF marker-time shift. The recording
 must contain the scheduled events through their ends. XDF retains the original
 embedded-trial marker and automatic clock-lag handling.
 

@@ -3,8 +3,10 @@
 For recording followed by offline analysis, use the **Start** tab: **Start
 recording → Stop recording → select Video1R/2R/3R or Video1LR/2LR/3LR → Process file**. It saves all
 raw channels and markers in timestamped BrainVision files under `data/` beside
-the app, using the same Recorder host and RDA port. Start capture before S3 and
-stop after the video ends. Recording and monitoring cannot run simultaneously.
+the app, using the same Recorder host and RDA port. Start capture synchronously with the video and
+stop after the video ends. File processing uses the first recorded sample as
+video time zero and requires no EEG markers. Recording and monitoring cannot
+run simultaneously.
 The online display options, filters and optional start-marker gate do not
 affect raw capture. See [the recording workflow](../README.md#record-and-process-a-stream).
 

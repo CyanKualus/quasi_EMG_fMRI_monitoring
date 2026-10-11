@@ -14,7 +14,7 @@ import numpy as np
 
 from emgcasting.single_file import analyze_file
 from settings import file_config
-from shared.brainvision import video_start
+from shared.brainvision import load, video_start
 from shared.file_ready import snapshot
 from shared.rda import GUID, HEADER
 from shared.recording import RDARecorder
@@ -168,14 +168,13 @@ class RecordingTests(unittest.TestCase):
         self.assertIn("Could not finalize", recorder.error)
         snapshot(recorder.path)
 
-    def test_recorded_file_runs_through_existing_emg_analysis(self):
+    def test_markerless_recording_runs_through_emg_analysis_from_sample_zero(self):
         fs = 250.
         rng = np.random.default_rng(42)
         values = rng.normal(0, 10, (int(345 * fs), 3))
         frames = [start_packet(fs=fs)]
         for number, offset in enumerate(range(0, len(values), 1000)):
-            markers = ((250, 1, -1, "Stimulus", "S  3"),) if number == 0 else ()
-            frames.append(data_packet(number, values[offset:offset + 1000], markers=markers))
+            frames.append(data_packet(number, values[offset:offset + 1000]))
         frames.append(packet(3))
         recorder = self.record(frames)
         self.assertTrue(recorder.ready, recorder.message)
@@ -186,11 +185,30 @@ class RecordingTests(unittest.TestCase):
         self.assertEqual(len(batch.recordings[0].hands), 1)
         self.assertEqual(batch.recordings[0].hands[0].n_trials, 40)
         self.assertEqual(batch.recordings[0].provenance["video"], "Video1R")
-        self.assertEqual(batch.recordings[0].provenance["video_start_sample"], 250)
+        self.assertEqual(batch.recordings[0].provenance["video_start_sample"], 0)
+        self.assertEqual(batch.recordings[0].provenance["video_start_s"], 0)
+        self.assertIsNone(batch.recordings[0].provenance["video_start_marker"])
+        self.assertEqual(batch.recordings[0].provenance["video_timing_basis"], "recording_start")
+        self.assertEqual(batch.recordings[0].hands[0].analysis.onsets[0], 16.)
         batch_lr = analyze_file(file_config(recorder.path, video="Video2LR",
             overrides={"left_channels": ("F1", "F2")}))
         self.assertEqual([hand.n_trials for hand in batch_lr.recordings[0].hands], [20, 20])
         self.assertEqual(len(batch_lr.recordings[0].provenance["schedule_sources"]), 2)
+        self.assertEqual(batch_lr.recordings[0].hands[0].analysis.onsets[0], 16.)
+        self.assertEqual(batch_lr.recordings[0].hands[1].analysis.onsets[0], 48.)
+
+    def test_present_markers_do_not_shift_or_reject_synchronous_timing(self):
+        values = np.zeros((334 * 250, 3))
+        recorder = self.record([start_packet(fs=250.), data_packet(1, values, markers=(
+            (250, 1, -1, "Stimulus", "S 3"),
+            (500, 1, -1, "Stimulus", "S 4"))), packet(3)])
+        self.assertTrue(recorder.ready, recorder.message)
+        _, events, onset, provenance = load(
+            recorder.path, ("right_microrepeat", "rest"), pick_labels=("F1", "F2"), video="Video1R")
+        self.assertEqual(onset, 0.)
+        self.assertEqual(events["right_microrepeat"][0][0], 16.)
+        self.assertEqual(events["rest"][0][0], 32.)
+        self.assertEqual(provenance["video_start_sample"], 0)
 
 
 if __name__ == "__main__":

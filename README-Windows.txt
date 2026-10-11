@@ -10,7 +10,7 @@ Do not run the executable directly from inside the ZIP.
 Record and process:
 1. Enable Remote Data Access and monitoring in BrainVision Recorder.
 2. On Start, set Recorder host and RDA port (normally 127.0.0.1 and 51244).
-3. Press Start recording before the video's S3 marker. All incoming channels
+3. Start recording synchronously with the video. All incoming channels
    and markers are saved without filtering or artifact correction.
 4. Press Stop recording after the video finishes. Wait for the saved-file status.
 5. Select Video1R/Video2R/Video3R or Video1LR/Video2LR/Video3LR.
@@ -18,6 +18,8 @@ Record and process:
    then press Process file. Video selection resets for each new recording.
    R scores 40 right-hand repeats; LR scores 20 repeats per enabled hand.
    Timing comes from block CSVs; each 4-second repeat is scored separately.
+   The first recorded sample is video time zero. No EEG markers are required;
+   any S3/S4 markers are ignored for alignment. No start delay is estimated.
 6. Review EMG Analysis, then use Save figures + CSV to export the result.
 
 Raw recordings are saved automatically in data beside the executable, with

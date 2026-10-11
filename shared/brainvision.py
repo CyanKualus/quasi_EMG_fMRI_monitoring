@@ -1,6 +1,7 @@
 """BrainVision loading with manually selected R/LR block schedules.
 
-Repeat timing is reconstructed from block tables and anchored to the first S3.
+Repeat timing is reconstructed from block tables, with video time zero at the
+recording's first sample. EEG markers are not required or used for alignment.
 The old session-order helpers remain for historical diagnostics only.
 """
 from __future__ import annotations
@@ -306,7 +307,7 @@ def marker_onsets(raw, marker: str) -> np.ndarray:
 
 def video_start(raw, source_name: str = "recording", *,
                 expected_duration_s: float = VIDEO_DURATION_S) -> float:
-    """Earliest S3 onset, with the S4 video-duration cross-check when present."""
+    """Legacy diagnostic helper; the app aligns video to recording sample zero."""
     starts = marker_onsets(raw, VIDEO_START_MARKER)
     if starts.size == 0:
         raise KeyError(f"{source_name}: no {VIDEO_START_MARKER!r} video-start marker")
@@ -371,7 +372,9 @@ def load(path: str | Path, wanted_events: Iterable[str], *,
             raise ValueError(f"{path.name}: channels not found: {missing}")
     native_fs = float(raw.info["sfreq"])
     schedule = read_video_schedule(video, schedule_dir, wanted_events)
-    anchor = video_start(raw, path.name, expected_duration_s=schedule.duration_s)
+    # Acquisition is assumed to start synchronously with the video. Do not
+    # shift the schedule or require S3/S4, even if unrelated markers exist.
+    anchor = 0.0
     session_info = {"session_label": path.stem, "video": video,
                     "video_selection": "explicit", "schedule_format": "blocks",
                     "video_duration_s": schedule.duration_s,
@@ -424,7 +427,9 @@ def load(path: str | Path, wanted_events: Iterable[str], *,
         "source_header_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         "schedule_file": str(schedule.path),
         "schedule_sha256": hashlib.sha256(schedule.path.read_bytes()).hexdigest(),
-        "video_start_marker": VIDEO_START_MARKER,
+        "video_start_marker": None,
+        "video_timing_basis": "recording_start",
+        "video_timing_assumption": "Recording and video start synchronously",
         "video_start_s": anchor,
         "video_start_sample": int(round(anchor * native_fs)),
     }
